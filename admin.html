@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Private inbox | Mariem Ben Khelifa</title>
+  <style>
+    :root { color-scheme: dark; --bg: #0b0b10; --panel: #15151d; --line: #2d2d3a; --text: #f5f3fb; --muted: #a5a2b2; --accent: #9d8cff; --danger: #ff817b; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: radial-gradient(circle at top right, #25203d 0, var(--bg) 38%); color: var(--text); font: 16px/1.5 system-ui, sans-serif; }
+    main { width: min(980px, calc(100% - 2rem)); margin: 0 auto; padding: 4rem 0; }
+    .eyebrow { color: var(--accent); font: 12px monospace; letter-spacing: .12em; text-transform: uppercase; }
+    h1 { margin: .5rem 0 2rem; font-size: clamp(2rem, 6vw, 4rem); line-height: 1; }
+    .panel, .message { border: 1px solid var(--line); background: color-mix(in srgb, var(--panel) 94%, transparent); border-radius: 10px; padding: 1.25rem; }
+    form { display: flex; gap: .75rem; max-width: 520px; }
+    input { width: 100%; border: 1px solid var(--line); border-radius: 6px; padding: .8rem; background: #0e0e14; color: var(--text); font: inherit; }
+    button, .reply { border: 0; border-radius: 6px; padding: .8rem 1rem; background: var(--accent); color: #100d1d; cursor: pointer; font: 600 14px system-ui, sans-serif; text-decoration: none; white-space: nowrap; }
+    button:hover, .reply:hover { filter: brightness(1.12); }
+    .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+    .toolbar button { background: transparent; border: 1px solid var(--line); color: var(--text); }
+    .danger { color: var(--danger) !important; border-color: #673b3b !important; }
+    #messages { display: grid; gap: .8rem; }
+    .message-head { display: flex; justify-content: space-between; gap: 1rem; }
+    .message h2 { margin: .15rem 0 .4rem; font-size: 1.1rem; }
+    .message p { margin: .4rem 0; overflow-wrap: anywhere; }
+    .message-body { white-space: pre-wrap; color: var(--muted); }
+    time, .email, #status { color: var(--muted); font-size: .88rem; }
+    .hidden { display: none; }
+    @media (max-width: 560px) { form, .toolbar, .message-head { align-items: stretch; flex-direction: column; } }
+  </style>
+</head>
+<body>
+  <main>
+    <span class="eyebrow">Private workspace</span>
+    <h1>Message inbox</h1>
+
+    <section id="login-panel" class="panel" aria-labelledby="login-title">
+      <h2 id="login-title">Owner login</h2>
+      <p>Enter your admin password to view client messages.</p>
+      <form id="login-form">
+        <label class="hidden" for="password">Admin password</label>
+        <input id="password" type="password" placeholder="Admin password" autocomplete="current-password" required />
+        <button type="submit">Open inbox</button>
+      </form>
+      <p id="login-status" role="alert"></p>
+    </section>
+
+    <section id="inbox-panel" class="hidden" aria-labelledby="inbox-title">
+      <div class="toolbar">
+        <div>
+          <h2 id="inbox-title">Client messages</h2>
+          <span id="count">0 messages</span>
+        </div>
+        <div>
+          <button id="refresh" type="button">Refresh</button>
+          <button id="clear" class="danger" type="button">Clear inbox</button>
+        </div>
+      </div>
+      <div id="messages"></div>
+      <p id="status" role="status"></p>
+    </section>
+  </main>
+
+  <script>
+    const loginPanel = document.querySelector("#login-panel");
+    const inboxPanel = document.querySelector("#inbox-panel");
+    const messages = document.querySelector("#messages");
+    const count = document.querySelector("#count");
+    const status = document.querySelector("#status");
+
+    function render(items) {
+      count.textContent = `${items.length} message${items.length === 1 ? "" : "s"}`;
+      messages.replaceChildren();
+      if (!items.length) {
+        messages.innerHTML = "<p>No client messages yet.</p>";
+        return;
+      }
+      items.forEach((item) => {
+        const card = document.createElement("article");
+        card.className = "message";
+        const date = new Date(item.date).toLocaleString();
+        card.innerHTML = `<div class="message-head"><div><strong>${escapeHtml(item.name)}</strong><div class="email">${escapeHtml(item.email)}</div></div><time>${escapeHtml(date)}</time></div><h2>${escapeHtml(item.subject)}</h2><p class="message-body">${escapeHtml(item.body)}</p><a class="reply" href="mailto:${encodeURIComponent(item.email)}?subject=${encodeURIComponent("Re: " + item.subject)}">Reply by email</a>`;
+        messages.appendChild(card);
+      });
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" })[character]);
+    }
+
+    async function loadMessages() {
+      const response = await fetch("/api/messages", { credentials: "same-origin" });
+      if (!response.ok) throw new Error("Your session has expired.");
+      const data = await response.json();
+      render(data.messages);
+    }
+
+    document.querySelector("#login-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const loginStatus = document.querySelector("#login-status");
+      loginStatus.textContent = "Signing in...";
+      const response = await fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "same-origin", body: JSON.stringify({ password: document.querySelector("#password").value }) });
+      if (!response.ok) { loginStatus.textContent = "Invalid password."; return; }
+      loginPanel.classList.add("hidden");
+      inboxPanel.classList.remove("hidden");
+      await loadMessages();
+    });
+
+    document.querySelector("#refresh").addEventListener("click", () => loadMessages().catch((error) => { status.textContent = error.message; }));
+    document.querySelector("#clear").addEventListener("click", async () => {
+      if (!confirm("Delete all messages?")) return;
+      const response = await fetch("/api/messages", { method: "DELETE", credentials: "same-origin" });
+      if (response.ok) { status.textContent = "Inbox cleared."; await loadMessages(); }
+    });
+  </script>
+</body>
+</html>

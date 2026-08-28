@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mariem Ben Khelifa — Software Engineer &amp; Designer</title>
+<meta name="description" content="Portfolio of Mariem Ben Khelifa — Software Engineering student, full-stack developer and graphic designer building digital products that combine code and design." />
+<meta name="theme-color" content="#08080c" />
+
+<!-- Open Graph -->
+<meta property="og:title" content="Mariem Ben Khelifa — Software Engineer & Designer" />
+<meta property="og:description" content="Full-stack developer and graphic designer portfolio." />
+<meta property="og:type" content="website" />
+<meta property="og:image" content="assets/images/profile/pfp.jpeg" />
+
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%237c6aee'/%3E%3C/svg%3E" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+<link rel="stylesheet" href="css/style.css" />
+
+</head>
+<body>
+
+<a href="#main" class="skip-link">Skip to content</a>
+
+<!-- Ambient background -->
+<div class="bg-field" aria-hidden="true">
+  <div class="bg-glow bg-glow--a"></div>
+  <div class="bg-glow bg-glow--b"></div>
+  <div class="bg-glow bg-glow--c"></div>
+</div>
+<div class="grain" aria-hidden="true"></div>
+
+<!-- Splash cursor -->
+<div id="splash-cursor-container" aria-hidden="true"><canvas></canvas></div>
+
+<!-- Navigation -->
+<header class="navbar" id="navbar">
+  <a href="#top" class="nav-logo"><span class="dot" aria-hidden="true"></span>Mariem Ben Khelifa</a>
+
+  <nav aria-label="Primary">
+    <ul class="nav-links" id="nav-links">
+      <li><a href="#about" data-nav>About</a></li>
+      <li><a href="#skills" data-nav>Skills</a></li>
+      <li><a href="#projects" data-nav>Projects</a></li>
+      <li><a href="#design" data-nav>Design</a></li>
+      <li><a href="#experience" data-nav>Experience</a></li>
+      <li><a href="#contact" data-nav>Contact</a></li>
+    </ul>
+  </nav>
+
+  <div class="nav-actions">
+    <a class="btn btn-primary btn-sm nav-cta" href="#contact">Let's Talk</a>
+    <button class="nav-toggle" id="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</header>
+
+<div class="mobile-menu" id="mobile-menu">
+  <a href="#about" data-nav>About</a>
+  <a href="#skills" data-nav>Skills</a>
+  <a href="#projects" data-nav>Projects</a>
+  <a href="#design" data-nav>Design</a>
+  <a href="#websites" data-nav>Websites</a>
+  <a href="#experience" data-nav>Experience</a>
+  <a href="#contact" data-nav>Contact</a>
+</div>
+
+<main id="main">
+
+  <!-- ============ HERO ============ -->
+  <section class="hero" id="top">
+    <div class="container hero-grid">
+      <div>
+        <div class="hero-terminal reveal">
+          <span class="pulse" aria-hidden="true"></span>
+          <span id="hero-availability">Open to internships &amp; freelance work</span>
+        </div>
+
+        <h1 class="reveal">Hi, I'm <span class="accent" id="hero-name">Mariem Ben Khelifa</span>.</h1>
+
+        <div class="hero-role reveal" id="hero-role" aria-live="polite">
+          <span id="hero-role-text">Full-Stack Developer</span><span class="caret" aria-hidden="true"></span>
+        </div>
+
+        <p class="hero-tagline reveal" id="hero-tagline">
+          I build digital experiences at the intersection of code and design — clean, functional software wrapped in interfaces people enjoy using.
+        </p>
+
+        <div class="hero-ctas reveal">
+          <a href="#projects" class="btn btn-primary">View My Work</a>
+          <a href="#contact" class="btn btn-ghost">Contact Me</a>
+        </div>
+
+        <div class="hero-socials reveal" id="hero-socials">
+          <!-- injected by JS -->
+        </div>
+      </div>
+
+      <div class="hero-portrait reveal">
+        <div class="ring" aria-hidden="true"></div>
+        <div class="glow" aria-hidden="true"></div>
+        <div class="frame">
+          <img src="assets/images/profile/pfp.jpeg" alt="Portrait of Mariem Ben Khelifa" id="hero-photo"
+               onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%27400%27 height=%27400%27%3E%3Crect width=%27400%27 height=%27400%27 fill=%27%23191925%27/%3E%3Ctext x=%2750%25%27 y=%2750%25%27 fill=%27%236e6c7e%27 font-family=%27monospace%27 font-size=%2716%27 text-anchor=%27middle%27%3EYOUR_PHOTO.jpg%3C/text%3E%3C/svg%3E'" />
+        </div>
+        <div class="hero-tag-chip"><span class="sw" style="background:#62e0a1"></span>Available for work</div>
+      </div>
+    </div>
+
+    <div class="scroll-hint" aria-hidden="true"><span class="line"></span>SCROLL</div>
+  </section>
+
+  <!-- ============ ABOUT ============ -->
+  <section class="section" id="about">
+    <div class="container">
+      <div class="section-head reveal">
+        <span class="eyebrow">01 — About</span>
+        <h2>Code is how I think. Design is how I communicate it.</h2>
+      </div>
+
+      <div class="about-layout">
+        <div class="about-copy reveal">
+          <p>I'm a Software Engineering &amp; Information Systems student who got into programming through curiosity and stayed for the problem-solving. Somewhere along the way, design became just as central to how I work — I care as much about how something looks and feels as I do about how it runs.</p>
+          <p>My interests span full-stack web development, UI/UX and graphic design, applied AI, and the fundamentals of cybersecurity. I like projects that force me to learn something new, and I like finishing things — a working product beats a perfect idea that never shipped.</p>
+          <a href="assets/cv/YOUR_CV.pdf" class="btn btn-ghost" download id="cv-download">
+            Download CV
+          </a>
+        </div>
+
+        <div class="journey-list reveal-stagger" id="journey-list">
+          <!-- injected by JS -->
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SKILLS ============ -->
+  <section class="section" id="skills">
+    <div class="container">
+      <div class="section-head reveal">
+        <span class="eyebrow">02 — Skills</span>
+        <h2>Tools I reach for.</h2>
+        <p>A working set of languages, frameworks and design tools — sized by how often I actually use them, not how they'd look on a resume.</p>
+      </div>
+
+      <div class="skills-grid reveal-stagger" id="skills-grid">
+        <!-- injected by JS -->
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PROJECTS ============ -->
+  <section class="section" id="projects">
+    <div class="container">
+      <div class="section-head reveal">
+        <span class="eyebrow">03 — Projects</span>
+        <h2>Selected work.</h2>
+      </div>
+
+      <div class="filter-bar reveal" id="filter-bar">
+        <!-- injected by JS -->
+      </div>
+
+      <div class="project-grid reveal-stagger" id="project-grid">
+        <!-- injected by JS -->
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ GRAPHIC DESIGN ============ -->
+  <section class="section" id="design">
+    <div class="container">
+      <div class="section-head reveal">
+        <span class="eyebrow">04 — Design</span>
+        <h2>Graphic &amp; visual design.</h2>
+        <p>Posters, branding, social media and illustration work — the visual side of what I do.</p>
+      </div>
+
+      <div class="masonry reveal" id="design-masonry">
+        <!-- injected by JS -->
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ WEBSITES ============ -->
+  <section class="section" id="websites">
+    <div class="container">
+      <div class="section-head reveal">
+        <span class="eyebrow">05 — Websites</span>
+        <h2>Websites I've built.</h2>
+        <p>Live and shipped — not mockups.</p>
+      </div>
+
+      <div class="website-list" id="website-list">
+        <!-- injected by JS -->
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ACADEMIC PROJECTS ============ -->
+  <section class="section section--tight" id="academic">
+    <div class="container">
+      <div class="section-head reveal">
+        <span class="eyebrow">06 — Coursework</span>
+        <h2>Educational &amp; academic projects.</h2>
+        <p>Work from university and self-directed learning — built to understand, not just to submit.</p>
+      </div>
+
+      <div class="academic-grid reveal-stagger" id="academic-grid">
+        <!-- injected by JS -->
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ EXPERIENCE ============ -->
+  <section class="section" id="experience">
+    <div class="container">
+      <div class="section-head reveal">
+        <span class="eyebrow">07 — Experience</span>
+        <h2>Timeline.</h2>
+        <p>University, clubs, competitions and the things that happened outside the classroom.</p>
+      </div>
+
+      <div class="timeline reveal-stagger" id="timeline">
+        <!-- injected by JS -->
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CERTIFICATIONS ============ -->
+  <section class="section section--tight" id="certifications">
+    <div class="container">
+      <div class="section-head reveal">
+        <span class="eyebrow">08 — Certifications</span>
+        <h2>Certifications.</h2>
+      </div>
+
+      <div class="cert-grid reveal-stagger" id="cert-grid">
+        <!-- injected by JS -->
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CONTACT ============ -->
+  <section class="section" id="contact">
+    <div class="container contact-layout">
+      <div class="contact-info reveal">
+        <span class="eyebrow">09 — Contact</span>
+        <h2>Let's build something great together.</h2>
+        <p>Have a project, an internship opening, or just want to talk shop? My inbox is open.</p>
+
+        <div class="contact-links" id="contact-links">
+          <!-- injected by JS -->
+        </div>
+      </div>
+
+      <form class="reveal" id="contact-form" novalidate>
+        <div class="form-grid">
+          <div class="field">
+            
+  </section>
+
+</main>
+
+<footer class="footer">
+  <a href="#top" class="back-top">Back to top ↑</a>
+</footer>
+
+<!-- Project modal -->
+<div class="modal-overlay" id="project-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div class="modal-panel">
+    <div class="modal-hero">
+      <img id="modal-img" src="" alt="" />
+      <button class="modal-close" id="modal-close" aria-label="Close project details">✕</button>
+    </div>
+    <div class="modal-body">
+      <span class="project-cat" id="modal-cat"></span>
+      <h3 id="modal-title"></h3>
+      <p id="modal-summary"></p>
+
+      <div class="modal-grid">
+        <div class="modal-block">
+          <h4>Problem</h4>
+          <p id="modal-problem"></p>
+        </div>
+        <div class="modal-block">
+          <h4>Solution</h4>
+          <p id="modal-solution"></p>
+        </div>
+        <div class="modal-block">
+          <h4>Key Features</h4>
+          <ul id="modal-features"></ul>
+        </div>
+        <div class="modal-block">
+          <h4>My Role</h4>
+          <p id="modal-role"></p>
+        </div>
+        <div class="modal-block">
+          <h4>Technologies</h4>
+          <p id="modal-tech"></p>
+        </div>
+        <div class="modal-block">
+          <h4>Results</h4>
+          <p id="modal-results"></p>
+        </div>
+      </div>
+
+      <div class="modal-actions" id="modal-actions"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox">
+  <button class="lightbox-close" id="lightbox-close" aria-label="Close preview">✕</button>
+  <img id="lightbox-img" src="" alt="" />
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

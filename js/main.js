@@ -1,0 +1,681 @@
+/* ==========================================================================
+   MAIN.JS — rendering + interactions
+   Reads content from data.js (SITE, PROJECTS, SKILLS, etc.) and renders it,
+   then wires up navigation, filtering, modals, the lightbox, the custom
+   cursor and scroll-reveal animations.
+   ========================================================================== */
+(() => {
+  "use strict";
+
+  /* ---------- tiny helpers ---------- */
+  const $ = (sel, ctx = document) => ctx.querySelector(sel);
+  const $$ = (sel, ctx = document) => Array.from(ctx.querySelectorAll(sel));
+  const el = (tag, props = {}, children = []) => {
+    const node = document.createElement(tag);
+    Object.entries(props).forEach(([k, v]) => {
+      if (k === "class") node.className = v;
+      else if (k === "html") node.innerHTML = v;
+      else if (k.startsWith("on") && typeof v === "function") node.addEventListener(k.slice(2), v);
+      else node.setAttribute(k, v);
+    });
+    children.forEach((c) => node.appendChild(typeof c === "string" ? document.createTextNode(c) : c));
+    return node;
+  };
+  const placeholderImg = (label, w = 640, h = 400) =>
+    `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}'%3E%3Crect width='100%25' height='100%25' fill='%23161620'/%3E%3Cline x1='0' y1='0' x2='${w}' y2='${h}' stroke='%23252534' stroke-width='1'/%3E%3Cline x1='${w}' y1='0' x2='0' y2='${h}' stroke='%23252534' stroke-width='1'/%3E%3Ctext x='50%25' y='50%25' fill='%236e6c7e' font-family='monospace' font-size='14' text-anchor='middle' dominant-baseline='middle'%3E${encodeURIComponent(label)}%3C/text%3E%3C/svg%3E`;
+  const withFallback = (img, label) => {
+    img.addEventListener("error", () => { img.src = placeholderImg(label); }, { once: true });
+    return img;
+  };
+  let activeFilter = "All";
+
+  /* ---------- icons (inline SVG, currentColor) ---------- */
+  const ICONS = {
+    github: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2C6.48 2 2 6.58 2 12.2c0 4.5 2.87 8.32 6.84 9.67.5.1.68-.22.68-.5 0-.24-.01-1.03-.01-1.87-2.78.62-3.37-1.21-3.37-1.21-.46-1.2-1.11-1.52-1.11-1.52-.9-.63.07-.62.07-.62 1 .07 1.53 1.05 1.53 1.05.89 1.55 2.34 1.11 2.91.85.09-.66.35-1.11.63-1.36-2.22-.26-4.56-1.14-4.56-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.31.1-2.73 0 0 .84-.28 2.75 1.05a9.3 9.3 0 0 1 5 0c1.9-1.33 2.74-1.05 2.74-1.05.56 1.42.21 2.47.1 2.73.65.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.8-4.57 5.06.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.81 0 .27.18.6.69.5A10.03 10.03 0 0 0 22 12.2C22 6.58 17.52 2 12 2Z"/></svg>`,
+    linkedin: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2.5" y="2.5" width="19" height="19" rx="3.5"/><path d="M7.5 10.2V17M7.5 7.3v.01M11.5 17v-4.2c0-1.5.9-2.5 2.3-2.5 1.3 0 2.2.9 2.2 2.5V17"/></svg>`,
+    mail: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><path d="M3 6.5 12 13l9-6.5"/></svg>`,
+    external: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M7 17 17 7M9 7h8v8"/></svg>`,
+    arrow: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`,
+    badge: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 15.5 6.5 19l1-6L3 9l6-1 3-5.5L15 8l6 1-4.5 4 1 6z"/></svg>`,
+    location: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 21s7-6.1 7-11.5A7 7 0 0 0 5 9.5C5 14.9 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.3"/></svg>`,
+  };
+
+  /* ==========================================================================
+     RENDER: HERO
+     ========================================================================== */
+  function renderHero() {
+    document.title = `${SITE.name} — Software Engineer & Designer`;
+    $("#hero-name").textContent = SITE.name;
+    $("#hero-tagline").textContent = SITE.tagline;
+    $("#hero-availability").textContent = SITE.availability;
+    /*
+      const context = canvas.getContext("2d");
+      if (!context) return;
+      const points = Array.from({ length: 40 }, () => ({ x: 0, y: 0 }));
+      const target = { x: 0, y: 0 }, head = { x: 0, y: 0 };
+      let width = 1, height = 1, initialized = false, inside = false, fade = 0, lastInput = performance.now(), lastFrame = lastInput;
+      const resize = () => { width = window.innerWidth; height = window.innerHeight; const dpr = Math.min(window.devicePixelRatio || 1, 1.5); canvas.width = width * dpr; canvas.height = height * dpr; context.setTransform(dpr, 0, 0, dpr, 0, 0); };
+      const move = (event) => { target.x = event.clientX; target.y = event.clientY; if (!initialized) { head.x = target.x; head.y = target.y; points.forEach((point) => { point.x = head.x; point.y = head.y; }); initialized = true; } inside = true; lastInput = performance.now(); };
+      const leave = () => { inside = false; lastInput = performance.now(); };
+      const render = (now) => {
+        const delta = Math.min((now - lastFrame) / 16.667, 3); lastFrame = now;
+        if (initialized) { const ease = 1 - Math.pow(1 - 0.16, delta); head.x += (target.x - head.x) * ease; head.y += (target.y - head.y) * ease; points[0].x = head.x; points[0].y = head.y; for (let i = 1; i < points.length; i++) { const previous = points[i - 1]; const chainEase = 1 - Math.pow(1 - 0.336, delta); points[i].x += (previous.x - points[i].x) * chainEase; points[i].y += (previous.y - points[i].y) * chainEase; } }
+        const shouldFade = !inside || now - lastInput > 700; fade += ((initialized && !shouldFade ? 1 : 0) - fade) * Math.min(1, (16.667 * delta / 900) * 7);
+        context.clearRect(0, 0, width, height);
+        if (fade > 0.001 && initialized) { context.save(); context.globalCompositeOperation = "screen"; context.lineCap = "round"; for (let i = points.length - 2; i >= 0; i--) { const progress = i / (points.length - 1); const life = Math.pow(1 - progress, 0.8); const pulse = 1 + Math.sin(now * 0.0033 - progress * 11) * 0.16; const widthAtPoint = 8 * (1 - progress * 0.75); const red = Math.round(103 + (167 - 103) * progress); const green = Math.round(232 + (139 - 232) * progress); const blue = Math.round(249 + (250 - 249) * progress); context.strokeStyle = `rgba(${red}, ${green}, ${blue}, ${Math.min(1, life * fade * pulse)})`; context.shadowColor = context.strokeStyle; context.shadowBlur = 8 * 1.2; context.lineWidth = widthAtPoint; context.beginPath(); context.moveTo(points[i + 1].x, points[i + 1].y); context.lineTo(points[i].x, points[i].y); context.stroke(); } context.restore(); }
+        requestAnimationFrame(render);
+      };
+      window.addEventListener("resize", resize); window.addEventListener("mousemove", move); window.addEventListener("mouseleave", leave); resize(); requestAnimationFrame(render);
+      el("h3", {}, [project.title]),
+      el("p", {}, [project.summary]),
+    ]);
+    const tags = el("div", { class: "project-tags" });
+    project.tags.forEach((t) => tags.appendChild(el("span", {}, [t])));
+    body.appendChild(tags);
+
+    const links = el("div", { class: "project-links" });
+    if (project.github) links.appendChild(el("a", { href: project.github, target: "_blank", rel: "noopener", onclick: (e) => e.stopPropagation(), html: `${ICONS.github}GitHub` }));
+    if (project.demo) links.appendChild(el("a", { href: project.demo, target: "_blank", rel: "noopener", onclick: (e) => e.stopPropagation(), html: `${ICONS.external}Live Demo` }));
+    body.appendChild(links);
+    card.appendChild(body);
+
+    const open = () => openProjectModal(project);
+    card.addEventListener("click", open);
+    card.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
+    return card;
+  }
+
+    */
+    withFallback($("#hero-photo"), "your photo here");
+    $("#cv-download").setAttribute("href", SITE.cvUrl);
+    const socials = $("#hero-socials");
+    socials.appendChild(el("a", { class: "btn-icon", href: SITE.github, target: "_blank", rel: "noopener", "aria-label": "GitHub", html: ICONS.github }));
+    socials.appendChild(el("a", { class: "btn-icon", href: SITE.linkedin, target: "_blank", rel: "noopener", "aria-label": "LinkedIn", html: ICONS.linkedin }));
+    socials.appendChild(el("a", { class: "btn-icon", href: `mailto:${SITE.email}`, "aria-label": "Email", html: ICONS.mail }));
+    const roles = SITE.role.split("·").map((role) => role.trim()).filter(Boolean);
+    const roleEl = $("#hero-role-text");
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || roles.length < 2) {
+      roleEl.textContent = roles[0] || SITE.role;
+      return;
+    }
+    let roleIndex = 0;
+    let characterIndex = 0;
+    let deleting = false;
+    const tick = () => {
+      const current = roles[roleIndex];
+      characterIndex += deleting ? -1 : 1;
+      roleEl.textContent = current.slice(0, characterIndex);
+      if (!deleting && characterIndex === current.length) { deleting = true; setTimeout(tick, 1500); return; }
+      if (deleting && characterIndex === 0) { deleting = false; roleIndex = (roleIndex + 1) % roles.length; setTimeout(tick, 300); return; }
+      setTimeout(tick, deleting ? 28 : 55);
+    };
+    setTimeout(tick, 900);
+  }
+
+  function renderJourney() {
+    const list = $("#journey-list");
+    JOURNEY.forEach((item) => list.appendChild(el("div", { class: "journey-card" }, [
+      el("span", { class: "yr" }, [item.year]),
+      el("div", {}, [el("h4", {}, [item.title]), el("p", {}, [item.text])]),
+    ])));
+  }
+
+  function renderSkills() {
+    const grid = $("#skills-grid");
+    Object.entries(SKILLS).forEach(([group, skills]) => {
+      const items = el("div", { class: "skill-items" });
+      skills.forEach((skill) => items.appendChild(el("div", { class: "skill-item" }, [
+        el("span", {}, [skill.name]),
+        el("span", { class: "skill-bar" }, [el("span", { style: `width:${skill.level || 0}%` })]),
+      ])));
+      grid.appendChild(el("div", { class: "skill-group" }, [el("h3", {}, [group]), items]));
+    });
+  }
+
+  function projectCard(project) {
+    const image = el("img", { src: project.thumbnail, alt: `${project.title} cover`, loading: "lazy" });
+    withFallback(image, project.title);
+    const thumbnail = el("div", { class: `project-thumb${project.id === "coffee-shop-network" ? " project-thumb--network" : ""}` }, [image]);
+    const body = el("div", { class: "project-body" }, [
+      el("span", { class: "project-cat" }, [project.category]),
+      el("h3", {}, [project.title]),
+      el("p", {}, [project.summary]),
+    ]);
+    const tags = el("div", { class: "project-tags" });
+    project.tags.forEach((tag) => tags.appendChild(el("span", {}, [tag])));
+    body.appendChild(tags);
+    const links = el("div", { class: "project-links" });
+    if (project.github) links.appendChild(el("a", { href: project.github, target: "_blank", rel: "noopener", onclick: (event) => event.stopPropagation(), html: `${ICONS.github}GitHub` }));
+    if (project.demo) links.appendChild(el("a", { href: project.demo, target: "_blank", rel: "noopener", onclick: (event) => event.stopPropagation(), html: `${ICONS.external}Live Demo` }));
+    body.appendChild(links);
+    const card = el("article", { class: "project-card", tabindex: "0", role: "button" }, [thumbnail, body]);
+    const open = () => openProjectModal(project);
+    card.addEventListener("click", open);
+    card.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); open(); } });
+    return card;
+  }
+
+  function renderProjectGrid() {
+    const grid = $("#project-grid");
+    grid.innerHTML = "";
+    const filtered = activeFilter === "All" ? PROJECTS : PROJECTS.filter((p) => p.category === activeFilter);
+    if (!filtered.length) {
+      grid.appendChild(el("p", { class: "projects-empty" }, [`No projects in "${activeFilter}" yet — check back soon.`]));
+      return;
+    }
+    filtered.forEach((p) => grid.appendChild(projectCard(p)));
+  }
+
+  function renderFilterBar() {
+    const bar = $("#filter-bar");
+    PROJECT_CATEGORIES.forEach((cat) => {
+      const btn = el("button", { class: "filter-btn" + (cat === activeFilter ? " is-active" : ""), type: "button" }, [cat]);
+      btn.addEventListener("click", () => {
+        activeFilter = cat;
+        $$(".filter-btn", bar).forEach((b) => b.classList.remove("is-active"));
+        btn.classList.add("is-active");
+        renderProjectGrid();
+      });
+      bar.appendChild(btn);
+    });
+  }
+
+  function openProjectModal(project) {
+    $("#modal-img").src = project.thumbnail;
+    withFallback($("#modal-img"), project.title);
+    $("#modal-img").alt = `${project.title} screenshot`;
+    $("#modal-cat").textContent = project.category;
+    $("#modal-title").textContent = project.title;
+    $("#modal-summary").textContent = project.overview || project.summary;
+    $("#modal-problem").textContent = project.problem || "—";
+    $("#modal-solution").textContent = project.solution || "—";
+    $("#modal-role").textContent = project.role || "—";
+    $("#modal-tech").textContent = project.tags.join(", ");
+    $("#modal-results").textContent = project.results || "—";
+
+    const featuresList = $("#modal-features");
+    featuresList.innerHTML = "";
+    (project.features || []).forEach((f) => featuresList.appendChild(el("li", {}, [f])));
+
+    const actions = $("#modal-actions");
+    actions.innerHTML = "";
+    if (project.github) actions.appendChild(el("a", { class: "btn btn-ghost", href: project.github, target: "_blank", rel: "noopener", html: `${ICONS.github}View Code` }));
+    if (project.demo) actions.appendChild(el("a", { class: "btn btn-primary", href: project.demo, target: "_blank", rel: "noopener", html: `${ICONS.external}Live Demo` }));
+
+    $("#project-modal").classList.add("is-open");
+    document.body.style.overflow = "hidden";
+    $("#modal-close").focus();
+  }
+
+  function closeProjectModal() {
+    $("#project-modal").classList.remove("is-open");
+    document.body.style.overflow = "";
+  }
+
+  /* ==========================================================================
+     RENDER: DESIGN GALLERY + LIGHTBOX
+     ========================================================================== */
+  function renderDesignGallery() {
+    const wrap = $("#design-masonry");
+    DESIGN_WORKS.forEach((work) => {
+      const item = el("figure", { class: "masonry-item", tabindex: "0", role: "button", "aria-label": `Open ${work.title}` });
+      const img = el("img", { src: work.image, alt: work.title, loading: "lazy" });
+      withFallback(img, work.title);
+      item.appendChild(img);
+      item.appendChild(
+        el("figcaption", { class: "masonry-overlay" }, [
+          el("span", { class: "cat" }, [work.category]),
+          el("span", { class: "title" }, [work.title]),
+        ])
+      );
+      const open = () => openLightbox(work.image, work.title);
+      item.addEventListener("click", open);
+      item.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
+      wrap.appendChild(item);
+    });
+  }
+
+  function openLightbox(src, label) {
+    const img = $("#lightbox-img");
+    img.src = src;
+    withFallback(img, label);
+    img.alt = label;
+    $("#lightbox").classList.add("is-open");
+    document.body.style.overflow = "hidden";
+  }
+  function closeLightbox() {
+    $("#lightbox").classList.remove("is-open");
+    document.body.style.overflow = "";
+  }
+
+  /* ==========================================================================
+     RENDER: WEBSITES (browser-frame previews)
+     ========================================================================== */
+  function renderWebsites() {
+    const wrap = $("#website-list");
+    WEBSITES.forEach((site) => {
+      const frame = el("div", { class: "browser-frame" }, [
+        el("div", { class: "browser-bar" }, [
+          el("span", { class: "browser-dots" }, [el("span"), el("span"), el("span")]),
+          el("span", { class: "browser-url" }, [site.url]),
+        ]),
+      ]);
+      const img = el("img", { src: site.image, alt: `${site.name} screenshot`, loading: "lazy" });
+      withFallback(img, site.name);
+      frame.appendChild(img);
+
+      const tags = el("div", { class: "project-tags" });
+      site.tech.forEach((t) => tags.appendChild(el("span", {}, [t])));
+
+      const links = el("div", { class: "project-links" });
+      if (site.url) links.appendChild(el("a", { href: site.url, target: "_blank", rel: "noopener", html: `${ICONS.external}Live Website` }));
+      if (site.github) links.appendChild(el("a", { href: site.github, target: "_blank", rel: "noopener", html: `${ICONS.github}GitHub` }));
+
+      const info = el("div", { class: "website-info" }, [
+        el("h3", {}, [site.name]),
+        el("p", {}, [site.description]),
+        tags,
+        links,
+      ]);
+
+      wrap.appendChild(el("div", { class: "website-item reveal" }, [frame, info]));
+    });
+  }
+
+  /* ==========================================================================
+     RENDER: ACADEMIC PROJECTS
+     ========================================================================== */
+  function renderAcademic() {
+    const grid = $("#academic-grid");
+    ACADEMIC_PROJECTS.forEach((p) => {
+      const tags = el("div", { class: "project-tags" });
+      p.tags.forEach((t) => tags.appendChild(el("span", {}, [t])));
+      const cardContent = [];
+      if (p.image) {
+        const image = el("img", { class: "academic-cover", src: p.image, alt: `${p.title} cover`, loading: "lazy" });
+        withFallback(image, p.title);
+        cardContent.push(image);
+      }
+      cardContent.push(el("h3", {}, [p.title]));
+      if (p.link) cardContent.push(el("a", { class: "academic-link", href: p.link, target: "_blank", rel: "noopener" }, ["Open Figma prototype"]));
+      cardContent.push(
+        el("div", { class: "academic-row" }, [el("span", { class: "lbl" }, ["What I built"]), el("p", {}, [p.built])]),
+        el("div", { class: "academic-row" }, [el("span", { class: "lbl" }, ["Why"]), el("p", {}, [p.why])]),
+        el("div", { class: "academic-row" }, [el("span", { class: "lbl" }, ["What I learned"]), el("p", {}, [p.learned])]),
+        tags,
+      );
+      grid.appendChild(
+        el("div", { class: "academic-card" }, cardContent)
+      );
+    });
+  }
+
+  /* ==========================================================================
+     RENDER: EXPERIENCE TIMELINE
+     ========================================================================== */
+  function renderTimeline() {
+    const wrap = $("#timeline");
+    EXPERIENCE.forEach((item) => {
+      wrap.appendChild(
+        el("div", { class: "timeline-item reveal" }, [
+          el("div", { class: "timeline-date" }, [item.date]),
+          el("h4", {}, [item.title]),
+          el("div", { class: "org" }, [item.org]),
+          el("p", {}, [item.description]),
+        ])
+      );
+    });
+  }
+
+  /* ==========================================================================
+     RENDER: CERTIFICATIONS
+     ========================================================================== */
+  function renderCertifications() {
+    const grid = $("#cert-grid");
+    CERTIFICATIONS.forEach((c) => {
+      const card = el("article", { class: "cert-card", tabindex: "0", role: "button", "aria-label": `View ${c.name}` });
+      if (c.image) {
+        const image = el("img", { class: "cert-image", src: c.image, alt: `${c.name} certificate`, loading: "lazy" });
+        withFallback(image, c.name);
+        card.appendChild(image);
+      } else {
+        card.appendChild(el("div", { class: "cert-icon", html: ICONS.badge }));
+      }
+      card.appendChild(
+        el("div", { class: "cert-content" }, [
+        el("div", {}, [
+          el("h4", {}, [c.name]),
+          el("div", { class: "org" }, [c.org]),
+          el("div", { class: "date" }, [c.date]),
+        ]),
+          el("span", { class: "cert-view" }, ["Open certificate"]),
+        ])
+      );
+      const open = () => openLightbox(c.image, c.name);
+      card.addEventListener("click", open);
+      card.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
+      grid.appendChild(card);
+    });
+  }
+
+  /* ==========================================================================
+     RENDER: CONTACT
+     ========================================================================== */
+  function renderContact() {
+    const wrap = $("#contact-links");
+    wrap.appendChild(el("a", { href: `mailto:${SITE.email}` }, [el("span", { class: "ic", html: ICONS.mail }), SITE.email]));
+    wrap.appendChild(el("a", { href: SITE.linkedin, target: "_blank", rel: "noopener" }, [el("span", { class: "ic", html: ICONS.linkedin }), "LinkedIn"]));
+    wrap.appendChild(el("a", { href: SITE.github, target: "_blank", rel: "noopener" }, [el("span", { class: "ic", html: ICONS.github }), "GitHub"]));
+    if (SITE.location) {
+      wrap.appendChild(el("a", { href: "#" }, [el("span", { class: "ic", html: ICONS.location }), SITE.location]));
+    }
+  }
+
+  function wireContactForm() {
+    const form = $("#contact-form");
+    const status = $("#form-status");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!form.checkValidity()) {
+        status.textContent = "Please fill in every field before sending.";
+        status.classList.remove("ok");
+        return;
+      }
+      const name = $("#f-name").value.trim();
+      const email = $("#f-email").value.trim();
+      const subject = $("#f-subject").value.trim();
+      const body = $("#f-message").value.trim();
+      status.textContent = "Sending your message...";
+      status.classList.remove("ok");
+      try {
+        if (window.location.protocol === "file:") throw new Error("Static file mode");
+        const response = await fetch("/api/messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, email, subject, body }),
+        });
+        if (!response.ok) throw new Error("Message could not be saved");
+        status.textContent = "Message sent successfully. Thank you for reaching out.";
+        status.classList.add("ok");
+        form.reset();
+      } catch (error) {
+        const mailto = `mailto:${SITE.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(`Name: ${name}\nEmail: ${email}\n\n${body}`)}`;
+        status.textContent = "The server is unavailable, so your email app will open instead.";
+        status.classList.add("ok");
+        window.location.href = mailto;
+      }
+    });
+  }
+
+  /* ==========================================================================
+     NAVIGATION
+     ========================================================================== */
+  function wireNav() {
+    const navbar = $("#navbar");
+    const onScroll = () => navbar.classList.toggle("is-scrolled", window.scrollY > 24);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    const toggle = $("#nav-toggle");
+    const mobileMenu = $("#mobile-menu");
+    toggle.addEventListener("click", () => {
+      const open = mobileMenu.classList.toggle("is-open");
+      toggle.classList.toggle("is-open", open);
+      toggle.setAttribute("aria-expanded", String(open));
+      document.body.style.overflow = open ? "hidden" : "";
+    });
+    $$('[data-nav]', mobileMenu).forEach((a) =>
+      a.addEventListener("click", () => {
+        mobileMenu.classList.remove("is-open");
+        toggle.classList.remove("is-open");
+        toggle.setAttribute("aria-expanded", "false");
+        document.body.style.overflow = "";
+      })
+    );
+
+    // scrollspy
+    const sections = $$("main section[id]");
+    const navAnchors = $$('.nav-links a[data-nav]');
+    const spy = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            navAnchors.forEach((a) => a.classList.toggle("is-active", a.getAttribute("href") === `#${entry.target.id}`));
+          }
+        });
+      },
+      { rootMargin: "-45% 0px -50% 0px" }
+    );
+    sections.forEach((s) => spy.observe(s));
+  }
+
+  /* ==========================================================================
+     CUSTOM CURSOR
+     ========================================================================== */
+  function wireCursor() {
+    if (window.matchMedia("(hover: none), (pointer: coarse)").matches) return;
+    const canvas = $("#glow-cursor");
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    const points = Array.from({ length: 40 }, () => ({ x: 0, y: 0 }));
+    const target = { x: 0, y: 0 }, head = { x: 0, y: 0 };
+    let width = 1, height = 1, initialized = false, inside = false, fade = 0, lastInput = performance.now(), lastFrame = lastInput;
+    const resize = () => { width = window.innerWidth; height = window.innerHeight; const dpr = Math.min(window.devicePixelRatio || 1, 1.5); canvas.width = width * dpr; canvas.height = height * dpr; context.setTransform(dpr, 0, 0, dpr, 0, 0); };
+    const move = (event) => { target.x = event.clientX; target.y = event.clientY; if (!initialized) { head.x = target.x; head.y = target.y; points.forEach((point) => { point.x = head.x; point.y = head.y; }); initialized = true; } inside = true; lastInput = performance.now(); };
+    const leave = () => { inside = false; lastInput = performance.now(); };
+    const render = (now) => {
+      const delta = Math.min((now - lastFrame) / 16.667, 3); lastFrame = now;
+      if (initialized) { const ease = 1 - Math.pow(1 - 0.16, delta); head.x += (target.x - head.x) * ease; head.y += (target.y - head.y) * ease; points[0].x = head.x; points[0].y = head.y; for (let i = 1; i < points.length; i++) { const previous = points[i - 1]; const chainEase = 1 - Math.pow(1 - 0.336, delta); points[i].x += (previous.x - points[i].x) * chainEase; points[i].y += (previous.y - points[i].y) * chainEase; } }
+      const shouldFade = !inside || now - lastInput > 700; fade += ((initialized && !shouldFade ? 1 : 0) - fade) * Math.min(1, (16.667 * delta / 900) * 7);
+      context.clearRect(0, 0, width, height);
+      if (fade > 0.001 && initialized) { context.save(); context.globalCompositeOperation = "screen"; context.lineCap = "round"; for (let i = points.length - 2; i >= 0; i--) { const progress = i / (points.length - 1); const life = Math.pow(1 - progress, 0.8); const pulse = 1 + Math.sin(now * 0.0033 - progress * 11) * 0.16; const widthAtPoint = 8 * (1 - progress * 0.75); const red = Math.round(103 + (167 - 103) * progress); const green = Math.round(232 + (139 - 232) * progress); const blue = Math.round(249 + (250 - 249) * progress); context.strokeStyle = `rgba(${red}, ${green}, ${blue}, ${Math.min(1, life * fade * pulse)})`; context.shadowColor = context.strokeStyle; context.shadowBlur = 9.6; context.lineWidth = widthAtPoint; context.beginPath(); context.moveTo(points[i + 1].x, points[i + 1].y); context.lineTo(points[i].x, points[i].y); context.stroke(); } context.restore(); }
+      requestAnimationFrame(render);
+    };
+    window.addEventListener("resize", resize); window.addEventListener("mousemove", move); window.addEventListener("mouseleave", leave); resize(); requestAnimationFrame(render);
+    return;
+    /*
+    const canvas = $("#glow-cursor");
+    const gl = canvas.getContext("webgl", { alpha: true, premultipliedAlpha: false });
+    if (!gl) return;
+
+    const vertexSource = `attribute vec2 position; void main() { gl_Position = vec4(position, 0.0, 1.0); }`;
+    const fragmentSource = `
+      precision highp float;
+      #define MAX_POINTS 64
+      uniform vec2 uResolution;
+      uniform vec2 uPoints[MAX_POINTS];
+      uniform float uPointCount;
+      uniform vec3 uColor;
+      uniform vec3 uSecondaryColor;
+      uniform float uTrailWidth;
+      uniform float uTaper;
+      uniform float uGlowIntensity;
+      uniform float uGlowSpread;
+      uniform float uHotspot;
+      uniform float uBrightness;
+      uniform float uOpacity;
+      uniform float uPulseSpeed;
+      uniform float uNoiseStrength;
+      uniform float uTime;
+      uniform float uFade;
+      float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }
+      void main() {
+        vec2 pixel = gl_FragCoord.xy;
+        float denominator = max(uPointCount - 1.0, 1.0);
+        float strongest = 0.0;
+        float strongestCore = 0.0;
+        float colorWeight = 0.0;
+        vec3 colorSum = vec3(0.0);
+        for (int i = 0; i < MAX_POINTS - 1; i++) {
+          float index = float(i);
+          float active = 1.0 - step(uPointCount - 1.0, index);
+          vec2 start = uPoints[i];
+          vec2 end = uPoints[i + 1];
+          vec2 toPixel = pixel - start;
+          vec2 segment = end - start;
+          float along = clamp(dot(toPixel, segment) / max(dot(segment, segment), 0.0001), 0.0, 1.0);
+          float progress = clamp((index + along) / denominator, 0.0, 1.0);
+          float life = pow(max(1.0 - progress, 0.0), mix(0.55, 1.25, uTaper));
+          float width = uTrailWidth * mix(1.0, 0.25, pow(progress, mix(0.55, 1.6, uTaper)));
+          float distanceToTrail = length(toPixel - segment * along);
+          float falloff = max(width * (0.8 + uGlowSpread * 1.4), 0.5);
+          float beam = min(1.0, (falloff * falloff) / (distanceToTrail * distanceToTrail + falloff * falloff));
+          float core = exp(-pow(distanceToTrail / max(width, 0.5), 2.0) * 2.5);
+          float pulse = 1.0 + sin(uTime * uPulseSpeed * 3.0 - progress * 11.0) * 0.16 * min(abs(uPulseSpeed), 1.0);
+          float intensity = (core + beam * uGlowIntensity * 0.55) * life * pulse * active;
+          colorSum += mix(uColor, uSecondaryColor, progress) * intensity;
+          colorWeight += intensity;
+          strongest = max(strongest, intensity);
+          strongestCore = max(strongestCore, core * life * active);
+        }
+        float grain = hash(floor(pixel) + vec2(mod(floor(uTime * 18.0), 256.0) * 17.0, mod(floor(uTime * 18.0), 256.0) * 31.0)) * 2.0 - 1.0;
+        float alpha = clamp(strongest * uOpacity * uFade, 0.0, 1.0);
+        if (alpha < 0.0005) discard;
+        vec3 color = colorSum / max(colorWeight, 0.0001);
+        color = mix(color, vec3(1.0), smoothstep(0.25, 0.95, strongestCore) * uHotspot);
+        float luminance = 1.055 * pow(clamp(strongest * uBrightness, 0.0001, 1.0), 1.0 / 2.4) - 0.055;
+        luminance *= 1.0 + grain * (1.0 - exp(-uNoiseStrength * 2.2)) * 0.4;
+        gl_FragColor = vec4(color * luminance, alpha);
+      }`;
+    const compile = (type, source) => {
+      const shader = gl.createShader(type);
+      gl.shaderSource(shader, source); gl.compileShader(shader);
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        console.error("Glow cursor shader error:", gl.getShaderInfoLog(shader));
+        return null;
+      }
+      return shader;
+    };
+    const vertex = compile(gl.VERTEX_SHADER, vertexSource);
+    const fragment = compile(gl.FRAGMENT_SHADER, fragmentSource);
+    if (!vertex || !fragment) return;
+    const program = gl.createProgram();
+    gl.attachShader(program, vertex); gl.attachShader(program, fragment); gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      console.error("Glow cursor program error:", gl.getProgramInfoLog(program));
+      return;
+    }
+    gl.useProgram(program);
+    const locations = { resolution: gl.getUniformLocation(program, "uResolution"), points: gl.getUniformLocation(program, "uPoints"), count: gl.getUniformLocation(program, "uPointCount"), color: gl.getUniformLocation(program, "uColor"), secondary: gl.getUniformLocation(program, "uSecondaryColor"), width: gl.getUniformLocation(program, "uTrailWidth"), taper: gl.getUniformLocation(program, "uTaper"), intensity: gl.getUniformLocation(program, "uGlowIntensity"), spread: gl.getUniformLocation(program, "uGlowSpread"), hotspot: gl.getUniformLocation(program, "uHotspot"), brightness: gl.getUniformLocation(program, "uBrightness"), opacity: gl.getUniformLocation(program, "uOpacity"), pulse: gl.getUniformLocation(program, "uPulseSpeed"), noise: gl.getUniformLocation(program, "uNoiseStrength"), time: gl.getUniformLocation(program, "uTime"), fade: gl.getUniformLocation(program, "uFade") };
+    const points = Array.from({ length: 64 }, () => ({ x: 0, y: 0 }));
+    const pointData = new Float32Array(128);
+    const target = { x: 0, y: 0 }, head = { x: 0, y: 0 };
+    let width = 1, height = 1, initialized = false, inside = false, fade = 0, lastInput = performance.now(), lastFrame = lastInput;
+    const color = [0x67 / 255, 0xe8 / 255, 0xf9 / 255], secondary = [0xa7 / 255, 0x8b / 255, 0xfa / 255];
+    const resize = () => { width = window.innerWidth; height = window.innerHeight; const dpr = Math.min(devicePixelRatio || 1, 1.5); canvas.width = width * dpr; canvas.height = height * dpr; gl.viewport(0, 0, canvas.width, canvas.height); };
+    const move = (event) => { target.x = event.clientX * (canvas.width / width); target.y = (height - event.clientY) * (canvas.height / height); if (!initialized) { head.x = target.x; head.y = target.y; points.forEach((point) => { point.x = head.x; point.y = head.y; }); initialized = true; } inside = true; lastInput = performance.now(); };
+    const leave = () => { inside = false; lastInput = performance.now(); };
+    const render = (now) => {
+      const delta = Math.min((now - lastFrame) / 16.667, 3); lastFrame = now;
+      if (initialized) { const ease = 1 - Math.pow(1 - 0.16, delta); head.x += (target.x - head.x) * ease; head.y += (target.y - head.y) * ease; for (let i = 0; i < 64; i++) { const previous = points[Math.max(i - 1, 0)]; points[i].x += (previous.x - points[i].x) * (1 - Math.pow(1 - 0.336, delta)); points[i].y += (previous.y - points[i].y) * (1 - Math.pow(1 - 0.336, delta)); pointData[i * 2] = points[i].x; pointData[i * 2 + 1] = points[i].y; } }
+      const shouldFade = !inside || now - lastInput > 700; fade += ((initialized && !shouldFade ? 1 : 0) - fade) * Math.min(1, (16.667 * delta / 900) * 7);
+      gl.uniform2f(locations.resolution, canvas.width, canvas.height); gl.uniform2fv(locations.points, pointData); gl.uniform1f(locations.count, 40); gl.uniform3fv(locations.color, color); gl.uniform3fv(locations.secondary, secondary); gl.uniform1f(locations.width, 8); gl.uniform1f(locations.taper, 0.8); gl.uniform1f(locations.intensity, 1.9); gl.uniform1f(locations.spread, 1.2); gl.uniform1f(locations.hotspot, 0.65); gl.uniform1f(locations.brightness, 1.25); gl.uniform1f(locations.opacity, 1); gl.uniform1f(locations.pulse, 1.1); gl.uniform1f(locations.noise, 0.035); gl.uniform1f(locations.time, now * 0.001); gl.uniform1f(locations.fade, fade);
+      gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); gl.drawArrays(gl.TRIANGLES, 0, 3); canvas.dataset.cursorRunning = "true"; requestAnimationFrame(render);
+    };
+    const buffer = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buffer); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW); const position = gl.getAttribLocation(program, "position"); gl.enableVertexAttribArray(position); gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
+    window.addEventListener("resize", resize); window.addEventListener("mousemove", move); window.addEventListener("mouseleave", leave); resize(); requestAnimationFrame(render);
+    */
+  }
+
+  /* ========================================================================
+     CURSOR GRID
+     ======================================================================== */
+  function initCursorGrid() {
+    if (window.matchMedia('(hover: none), (pointer: coarse)').matches) return;
+    const container = $('#cursor-grid');
+    const canvas = container?.querySelector('canvas');
+    const context = canvas?.getContext('2d');
+    if (!context) return;
+    const cellSize = 70, radius = 140, holdTime = 400, fadeDuration = 800, pulseSpeed = 600;
+    let width = 1, height = 1, columns = 0, rows = 0, offsetX = 0, offsetY = 0, alphas = new Float32Array(0), touched = new Float64Array(0), lastFrame = performance.now();
+    const pulses = [];
+    const rebuild = () => { width = window.innerWidth; height = window.innerHeight; const dpr = Math.min(window.devicePixelRatio || 1, 2); canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr); context.setTransform(dpr, 0, 0, dpr, 0, 0); columns = Math.ceil(width / cellSize) + 1; rows = Math.ceil(height / cellSize) + 1; offsetX = (width - columns * cellSize) / 2; offsetY = (height - rows * cellSize) / 2; alphas = new Float32Array(columns * rows); touched = new Float64Array(columns * rows); };
+    const center = (index) => [offsetX + (index % columns) * cellSize + cellSize / 2, offsetY + Math.floor(index / columns) * cellSize + cellSize / 2];
+    const energize = (x, y, boost = 1) => { const now = performance.now(); const minCol = Math.max(0, Math.floor((x - radius - offsetX) / cellSize)); const maxCol = Math.min(columns - 1, Math.floor((x + radius - offsetX) / cellSize)); const minRow = Math.max(0, Math.floor((y - radius - offsetY) / cellSize)); const maxRow = Math.min(rows - 1, Math.floor((y + radius - offsetY) / cellSize)); for (let row = minRow; row <= maxRow; row++) for (let col = minCol; col <= maxCol; col++) { const index = row * columns + col; const [cx, cy] = center(index); const distance = Math.hypot(cx - x, cy - y); if (distance > radius) continue; const t = 1 - distance / radius; const level = t * t * (3 - 2 * t) * boost; if (level > alphas[index]) alphas[index] = level; touched[index] = now; } };
+    const move = (event) => { energize(event.clientX, event.clientY); requestAnimationFrame(draw); };
+    const click = (event) => { pulses.push({ x: event.clientX, y: event.clientY, time: performance.now() }); energize(event.clientX, event.clientY, 1.5); requestAnimationFrame(draw); };
+    const draw = (now) => { const dt = Math.min(now - lastFrame, 50); lastFrame = now; context.clearRect(0, 0, width, height); const color = [217, 70, 239]; for (let pulseIndex = pulses.length - 1; pulseIndex >= 0; pulseIndex--) { const pulse = pulses[pulseIndex]; const ring = (now - pulse.time) / 1000 * pulseSpeed; if (ring > Math.hypot(width, height)) { pulses.splice(pulseIndex, 1); continue; } for (let i = 0; i < alphas.length; i++) { const [cx, cy] = center(i); if (Math.abs(Math.hypot(cx - pulse.x, cy - pulse.y) - ring) < cellSize / 2) { alphas[i] = 1; touched[i] = now; } } } for (let i = 0; i < alphas.length; i++) { let alpha = alphas[i]; if (alpha <= 0) continue; if (now - touched[i] > holdTime) { alpha = Math.max(0, alpha - dt / fadeDuration); alphas[i] = alpha; } if (!alpha) continue; const [cx, cy] = center(i); const x = cx - cellSize / 2 + 0.5, y = cy - cellSize / 2 + 0.5; context.strokeStyle = `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${alpha})`; context.shadowColor = `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${alpha})`; context.shadowBlur = 12; context.lineWidth = 1.2; context.strokeRect(x, y, cellSize - 1, cellSize - 1); } requestAnimationFrame(draw); };
+    const wake = () => requestAnimationFrame(draw);
+    window.addEventListener('mousemove', move); window.addEventListener('click', click); window.addEventListener('resize', () => { rebuild(); wake(); }); rebuild();
+  }
+
+  /* ==========================================================================
+     SCROLL REVEAL
+     ========================================================================== */
+  function initSplashCursor() {
+    if (window.matchMedia('(hover: none), (pointer: coarse)').matches) return;
+    const container = $('#splash-cursor-container');
+    const canvas = container?.querySelector('canvas');
+    const context = canvas?.getContext('2d');
+    if (!context) return;
+    const splats = [];
+    let width = 1, height = 1, lastFrame = performance.now();
+    const resize = () => { width = window.innerWidth; height = window.innerHeight; const dpr = Math.min(window.devicePixelRatio || 1, 2); canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr); context.setTransform(dpr, 0, 0, dpr, 0, 0); };
+    const addSplat = (x, y, force = 1) => { const count = Math.max(2, Math.round(force * 5)); for (let i = 0; i < count; i++) splats.push({ x, y, radius: 2, maxRadius: 28 + Math.random() * 70 * force, angle: Math.random() * Math.PI * 2, speed: 0.5 + Math.random() * 1.4, hue: 274 + Math.random() * 35, alpha: 0.32 + Math.random() * 0.28 }); };
+    const move = (event) => addSplat(event.clientX, event.clientY, 0.35);
+    const click = (event) => addSplat(event.clientX, event.clientY, 1.6);
+    const draw = (now) => { const dt = Math.min((now - lastFrame) / 16.667, 3); lastFrame = now; context.clearRect(0, 0, width, height); context.globalCompositeOperation = 'screen'; for (let i = splats.length - 1; i >= 0; i--) { const splat = splats[i]; splat.radius += splat.speed * dt; splat.x += Math.cos(splat.angle) * splat.speed * dt; splat.y += Math.sin(splat.angle) * splat.speed * dt; splat.alpha *= Math.pow(1 - 0.035 * 2.5, dt); if (splat.radius > splat.maxRadius || splat.alpha < 0.01) { splats.splice(i, 1); continue; } const gradient = context.createRadialGradient(splat.x, splat.y, 0, splat.x, splat.y, splat.radius); gradient.addColorStop(0, `hsla(${splat.hue}, 55%, 72%, ${splat.alpha})`); gradient.addColorStop(0.35, `hsla(${splat.hue}, 55%, 62%, ${splat.alpha * 0.42})`); gradient.addColorStop(1, `hsla(${splat.hue}, 55%, 62%, 0)`); context.fillStyle = gradient; context.beginPath(); context.arc(splat.x, splat.y, splat.radius, 0, Math.PI * 2); context.fill(); } context.globalCompositeOperation = 'source-over'; requestAnimationFrame(draw); };
+    window.addEventListener('resize', resize); window.addEventListener('mousemove', move); window.addEventListener('click', click); resize(); requestAnimationFrame(draw);
+  }
+
+  function wireReveal() {
+    const targets = $$(".reveal, .reveal-stagger");
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("in-view");
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.15, rootMargin: "0px 0px -8% 0px" }
+    );
+    targets.forEach((t) => observer.observe(t));
+  }
+
+  /* ==========================================================================
+     MODALS / LIGHTBOX WIRING
+     ========================================================================== */
+  function wireOverlays() {
+    $("#modal-close").addEventListener("click", closeProjectModal);
+    $("#project-modal").addEventListener("click", (e) => { if (e.target.id === "project-modal") closeProjectModal(); });
+    $("#lightbox-close").addEventListener("click", closeLightbox);
+    $("#lightbox").addEventListener("click", (e) => { if (e.target.id === "lightbox") closeLightbox(); });
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      closeProjectModal();
+      closeLightbox();
+    });
+  }
+
+  /* ==========================================================================
+     INIT
+     ========================================================================== */
+  function init() {
+    renderHero();
+    renderJourney();
+    renderSkills();
+    renderFilterBar();
+    renderProjectGrid();
+    renderDesignGallery();
+    renderWebsites();
+    renderAcademic();
+    renderTimeline();
+    renderCertifications();
+    renderContact();
+    wireContactForm();
+    wireNav();
+    initSplashCursor();
+    wireOverlays();
+    wireReveal();
+    if ($("#year")) $("#year").textContent = new Date().getFullYear();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
